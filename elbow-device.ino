@@ -7,18 +7,6 @@
 #define CUR_SEN_SCALE 0.002
 #define CUR_THRESHOLD 0.05
 
-//encoder
-#define ENC_A 6
-#define ENC_B 7
-
-// limit switches
-#define LIM_SMIN 0
-#define LIM_SMAX 1
-
-// motor pins
-#define MOT_1 4
-#define MOT_2 5
-
 #define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -44,10 +32,6 @@ float prev_current = 0;
 
 bool is_command_being_executed = false;
 Command cur_comm;
-
-void IRAM_ATTR encoderISR_A();
-
-int s_mot = 0;
 
 class ElbowDeviceServerCallbacks : public HexoBTServerCallbacks {
   void onConnect(BLEServer* pServer) {
@@ -83,12 +67,7 @@ void setup() {
   led_s = new StatusLED(2);
   StatusLED::initLED(led_s);
 
-  controller = new LAController(MOT_1, MOT_2);
-  controller -> attachLimitSwitches(LIM_SMIN, LIM_SMAX);
-  controller -> attachEncoder(ENC_A, ENC_B);
-  attachInterrupt(ENC_A, encoderISR_A, RISING);
-  controller -> initController();
-  controller -> set(0, LAControl::STOP);
+  controller = new LAController(MOTOR_VCC, MOTOR_VEE);
 
   parser = new Parser();
   parser -> init();
@@ -112,19 +91,16 @@ void loop() {
     char cmd = Serial.read();
     switch(cmd) {
       case 'F':
-        controller -> set(s_mot, LAControl::FWD);
+        controller->fullForward();
+        Serial.println("Forward");
         break;
       case 'B':
-        controller -> set(s_mot, LAControl::REV);
+        controller->fullBackward();
+        Serial.println("Reverse");
         break;
       case 'S':
-        controller -> set(0, LAControl::STOP);
-        break; 
-      case 'H':
-        controller -> homeControls();
-        break;
-      case 'E':
-        s_mot = Serial.readStringUntil('/').toInt();
+        controller->stop();
+        Serial.println("Stopped");
         break;
     }
   }
@@ -158,7 +134,7 @@ void initMotorControlLoop() {
 
 void emergencyStop() {
   is_command_being_executed = false;
-  controller -> set(0, LAControl::STOP);
+  controller -> stop();
   vTaskDelete(la_task);
   Serial.println("task deleted");
   vTaskDelay(50/portTICK_PERIOD_MS);
@@ -181,39 +157,30 @@ void commandLoop(void* obj) {
 }
 
 void commExec(Command comm) {
-  int cpm_counts;
   switch(comm.mode) {
     case 'E':
-      if(comm.value > 200){
-        controller -> set(200, LAControl::REV);
+      if(comm.value > 100){
+        controller -> fullForward();
       }else {
-        controller -> set(comm.value, LAControl::REV);
+        controller -> forward(comm.value);
       }
       break;
     case 'F':
-      if(comm.value > 200){
-        controller -> set(200, LAControl::FWD);
+      if(comm.value > 100){
+        controller -> fullBackward();
       }else {
-        controller -> set(comm.value, LAControl::FWD);
+        controller -> backward(comm.value);
       }
       break;
     case 'C':
-      cpm_counts = 0;
-      while(cpm_counts < comm.value) {
-        if(controller -> isLimitSwitchTriggered() > 0) {
-          controller -> set(100, LAControl::REV);
-        } else if(controller -> isLimitSwitchTriggered() < 0) {
-          controller -> set(100, LAControl::FWD);
-          cpm_counts++;
-        }
-        vTaskDelay(200/portTICK_PERIOD_MS);
+      for(int i=0; i<comm.value; i++) {
+        controller -> fullForward();
+        vTaskDelay(4600/portTICK_PERIOD_MS);
+        controller -> fullBackward();
+        vTaskDelay(4600/portTICK_PERIOD_MS);
       }
       break;
     default:
       controller -> stop();
   }
-}
-
-void IRAM_ATTR encoderISR_A() {
-  controller -> encoderISR();
 }
