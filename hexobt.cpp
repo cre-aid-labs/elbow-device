@@ -45,3 +45,17 @@ void HexoBT::restartAdvertising() {
   vTaskDelay(500/portTICK_PERIOD_MS);
   pServer -> startAdvertising();
 }
+
+void HexoBT::write(std::string data) {
+  if(device_connected)
+  pTxCharacteristic->setValue(data);
+  pTxCharacteristic->notify();
+}
+
+bool HexoBT::is_device_connected() {
+  return device_connected;
+}
+
+bool HexoBT::is_prev_device_connected() {
+  return prev_device_connected;
+}

@@ -34,6 +34,9 @@ class HexoBT {
   bool prev_device_connected;
   HexoBT();
   void init(std::string devname, HexoBTServerCallbacks* srvclbks, HexoBTCharacteristicCallbacks* chrclbks, BLEUUIDs* uid);
+  void write(std::string data);
+  bool is_device_connected();
+  bool is_prev_device_connected();
   void restartAdvertising();
 };
 
