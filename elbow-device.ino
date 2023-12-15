@@ -114,10 +114,9 @@ void setup() {
   initMotorControlLoop();
 
   #ifdef BRACE_ENCODER
-  elbow_brace = new ElbowBrace(BRC_ENC_SDA, BRC_ENC_SCL, BRC_ENC_DIR);
+  elbow_brace = new ElbowBrace(BRC_ENC_SDA, BRC_ENC_SCL, BRC_ENC_DIR, hexobt);
   elbow_brace -> initDevice();
   #endif
-
   xTaskCreate(
     send_serial_data,
     "Serial data link",
@@ -126,7 +125,6 @@ void setup() {
     1,
     NULL
   );
-  
 }
 
 void loop() {
@@ -231,6 +229,11 @@ void commExec(Command comm) {
         }
         vTaskDelay(200/portTICK_PERIOD_MS);
       }
+      break;
+    case 'Z':
+      #ifdef ELBOW_BRACE
+        elbow_brace -> setReference();
+      #endif
       break;
     default:
       controller -> stop();
