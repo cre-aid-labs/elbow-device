@@ -128,7 +128,8 @@ void setup() {
 }
 
 void loop() {
-
+  
+  #ifndef BRACE_ENCODER
   if(Serial.available()>0){
     char cmd = Serial.read();
     switch(cmd) {
@@ -149,6 +150,47 @@ void loop() {
         break;
     }
   }
+  #endif
+
+  #ifdef BRACE_ENCODER
+  if(Serial.available()>0){
+    char cmd = Serial.read();
+    if(elbow_brace -> isAngleControlEnabled()) {
+      float ang = 0.0;
+      switch(cmd) {
+        case 'I':
+          ang = Serial.readStringUntil('/').toFloat();
+          elbow_brace -> moveByAngle(ang);
+          break;
+        case 'J':
+          ang = Serial.readStringUntil('/').toFloat();
+          elbow_brace -> moveByAngle(-ang);
+          break;
+        case 'A':
+          elbow_brace -> enableAngleControl();
+      }
+    }
+    switch(cmd) {
+      case 'F':
+        controller -> set(s_mot, LAControl::FWD);
+        break;
+      case 'B':
+        controller -> set(s_mot, LAControl::REV);
+        break;
+      case 'S':
+        controller -> set(0, LAControl::STOP);
+        break; 
+      case 'H':
+        controller -> homeControls();
+        break;
+      case 'E':
+        s_mot = Serial.readStringUntil('/').toInt();
+        break;
+      case 'Z':
+        elbow_brace -> setReference();
+    }
+  }
+  #endif
 
   if(!(hexobt -> device_connected) && (hexobt -> prev_device_connected)) {
     hexobt -> restartAdvertising();
@@ -231,7 +273,7 @@ void commExec(Command comm) {
       }
       break;
     case 'Z':
-      #ifdef ELBOW_BRACE
+      #ifdef BRACE_ENCODER
         elbow_brace -> setReference();
       #endif
       break;

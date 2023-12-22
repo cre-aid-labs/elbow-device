@@ -18,6 +18,17 @@ ElbowBrace::ElbowBrace(int enc_sda, int enc_scl, int enc_dir, HexoBT* hexobt) {
 void ElbowBrace::controlLoop() {
   while(true){
     theta = elbow_encoder -> readAngle() * AS5600_RAW_TO_DEGREES;
+    if(angle_control && theta > 0.0) {
+      float delta = theta - set_point;
+      if (abs(theta) < ANGLE_CTRL_THRESHOLD) {
+        if (delta < 0) {
+          controller -> forward();
+        }
+        else {
+          controller -> backward();
+        }
+      }
+    }
     vTaskDelay(300/portTICK_PERIOD_MS);
   }
 }
@@ -32,11 +43,56 @@ void ElbowBrace::serialTransmitLoop() {
 }
 
 void ElbowBrace::setReference() {
-  elbow_encoder -> setOffset(theta);
+  elbow_encoder -> setOffset(-theta);
 }
 
 float ElbowBrace::getAngle() {
   return theta;
+}
+
+void ElbowBrace::setAngle(float angle) {
+  angle_control = true;
+  set_point = angle;
+}
+
+void ElbowBrace::moveByAngle(float angle) {
+  set_point += angle;
+}
+
+bool ElbowBrace::isAngleControlEnabled() {
+  return angle_control;
+}
+
+void ElbowBrace::disableAngleControl() {
+  angle_control = false;
+}
+
+void ElbowBrace::enableAngleControl() {
+  angle_control = true;
+}
+
+void ElbowBrace::enableROMLimits() {
+  rom_limit_enabled = true;
+}
+
+void ElbowBrace::setFlexLimitAtPosition() {
+  flex_rom_limit = theta;
+}
+
+void ElbowBrace::setExtLimitAtPosition() {
+  ext_rom_limit = theta;
+}
+
+void ElbowBrace::flex() {
+  set_point = flex_rom_limit;
+}
+
+void ElbowBrace::extend() {
+  set_point = ext_rom_limit;
+}
+
+void ElbowBrace::setController(LAController* controller) {
+  this -> controller = controller;
 }
 
 void ElbowBrace::controlLoopWrapper(void* obj) {
