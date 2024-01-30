@@ -75,27 +75,9 @@ class LAController {
   float getRotSpeed();
 
   int isLimitSwitchTriggered();
+  bool isMoving();
 
   static void controlLoopWrapper(void* obj);
-};
-
-class PIDController {
-  float Ki;
-  float Kp;
-  float Kd;
-  unsigned long prev_time;
-  float sp_err;
-  float sp;
-  float u;
-  float integral;
-  float prev_e;
-  public:
-  
-  PIDController(float Ki, float Kp, float Kd);
-  void setPoint(float sp);
-  void update(float cur_u);
-  float out();
-  
 };
 
 #endif
