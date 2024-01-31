@@ -24,7 +24,7 @@ class ElbowBrace {
   int enc_dir;
 
   bool angle_control = false;
-  bool rom_limit_enabled = true;
+  bool rom_limit_enabled = false;
   float set_point = 0.0;
   float flex_rom_limit = 110.0;
   float ext_rom_limit = 0.0;
