@@ -100,6 +100,15 @@ void ElbowBrace::serialTransmitLoop() {
   }
 }
 
+void ElbowBrace::serialTransmitLoop() {
+  while(true) {
+    hexobt -> write("A ");
+    hexobt -> write(std::to_string(this -> getAngle()));
+    hexobt -> write("\n");
+    vTaskDelay(500/portTICK_PERIOD_MS);
+  }
+}
+
 void ElbowBrace::setReference() {
   float cur_angle = elbow_encoder -> readAngle() * AS5600_RAW_TO_DEGREES;
   float cur_offset = elbow_encoder -> getOffset();
@@ -225,5 +234,13 @@ void ElbowBrace::initDevice() {
     (void*) this,
     1,
     elbow_serial_task
+  );
+  xTaskCreate(
+    ElbowBrace::serialTransmitLoopWrapper,
+    "Elbow Bluetooth Transmit",
+    2000,
+    (void*) this,
+    1,
+    &elbow_serial_task
   );
 }
