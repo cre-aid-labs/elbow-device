@@ -12,7 +12,6 @@
 #include "parser.h"
 #include "elbow_brace.h"
 #include "pin_defs.h"
-#include "saved_data.h"
 
 void executeCommand(Command comm);
 void emergencyStop();
@@ -67,8 +66,8 @@ class ElbowDeviceRWCallbacks : public HexoBTCharacteristicCallbacks {
 
 void send_serial_data(void* obj) {
   while(true) {
-    Serial.print("DELTA: ");
-    Serial.print(elbow_brace -> pid -> out());
+    Serial.print("ROT: ");
+    Serial.print(controller -> getRotations());
     Serial.print("\tSPD: ");
     Serial.print(controller -> getRotSpeed());
     #ifdef BRACE_ENCODER
@@ -76,14 +75,10 @@ void send_serial_data(void* obj) {
     Serial.print(elbow_brace -> getAngle());
     #endif
     Serial.print("\tLIM: ");
-    Serial.print(controller -> isLimitSwitchTriggered());
-    Serial.print("\tINTG: ");
-    Serial.print(elbow_brace -> pid -> getIntegralValue());
+    Serial.println(controller -> isLimitSwitchTriggered());
     #ifdef BRACE_ENCODER
-    Serial.print("\tACTRL: ");
-    Serial.print(elbow_brace -> isAngleControlEnabled());
-    Serial.print("\tOFST: ");
-    Serial.println(elbow_brace -> getReference());
+    hexobt -> write(std::to_string(elbow_brace -> getAngle()));
+    hexobt -> write("\n");
     #endif
     vTaskDelay(300/portTICK_PERIOD_MS);
   }
@@ -112,15 +107,14 @@ void setup() {
     SERVICE_UUID);
   hexobt = new HexoBT();
   hexobt -> init(
-    "CREAIDa2cd15ba",
+    "CREAID CPM",
     new ElbowDeviceServerCallbacks(),
     new ElbowDeviceRWCallbacks(),
     uuids);
   initMotorControlLoop();
 
   #ifdef BRACE_ENCODER
-  elbow_brace = new ElbowBrace(BRC_ENC_SDA, BRC_ENC_SCL, BRC_ENC_DIR, hexobt, NULL);
-  elbow_brace -> setController(controller);
+  elbow_brace = new ElbowBrace(BRC_ENC_SDA, BRC_ENC_SCL, BRC_ENC_DIR, hexobt);
   elbow_brace -> initDevice();
   #endif
   xTaskCreate(
@@ -170,16 +164,10 @@ void loop() {
           break;
         case 'J':
           ang = Serial.readStringUntil('/').toFloat();
-          Serial.print("ANGLE: ");
-          Serial.println(ang);
           elbow_brace -> moveByAngle(-ang);
           break;
-        case 'D':
-          elbow_brace -> setFlexLimitAtPosition();
-          break;
-        case 'G':
-          elbow_brace -> setExtLimitAtPosition();
-          break;
+        case 'A':
+          elbow_brace -> enableAngleControl();
       }
     }
     switch(cmd) {
@@ -200,16 +188,6 @@ void loop() {
         break;
       case 'Z':
         elbow_brace -> setReference();
-        break;
-      case 'A':
-        elbow_brace -> enableAngleControl();
-        break;
-      case 'K':
-        elbow_brace -> disableAngleControl();
-        break;
-      case 'M':
-        elbow_brace -> setAngle(elbow_brace -> getAngle());
-        break;
     }
   }
   #endif
@@ -221,7 +199,6 @@ void loop() {
   if((hexobt -> device_connected) && !(hexobt -> prev_device_connected)) {
     hexobt -> prev_device_connected = hexobt -> device_connected;
   }
-  
 }
 
 float readCurrent() {
@@ -295,55 +272,11 @@ void commExec(Command comm) {
         vTaskDelay(200/portTICK_PERIOD_MS);
       }
       break;
-    #ifdef BRACE_ENCODER
     case 'Z':
-      elbow_brace -> setReference();
+      #ifdef BRACE_ENCODER
+        elbow_brace -> setReference();
+      #endif
       break;
-    case 'I':
-      elbow_brace -> moveByAngle(comm.value);
-      break;
-    case 'J':
-      elbow_brace -> moveByAngle(-comm.value);
-      break;
-    case 'G':
-      switch(comm.value) {
-        case 0:
-          elbow_brace -> disableROMLimits();
-          break;
-        case 1:
-          elbow_brace -> enableROMLimits();
-          break;
-        case 2:
-          elbow_brace -> disableAngleControl();
-          break;
-        case 3:
-          elbow_brace -> enableAngleControl();
-          break;
-        case 4:
-          elbow_brace -> pid -> unwindIntegral();
-          break;
-        case 5:
-          elbow_brace -> setAngle(elbow_brace -> getAngle());
-          break;
-      }
-      break;
-    case 'M':
-      switch(comm.value) {
-        case 0:
-          elbow_brace -> setFlexLimitAtPosition();
-          break;
-        case 1:
-          elbow_brace -> setExtLimitAtPosition();
-          break;
-      }
-      break;
-    case 'P':
-      elbow_brace -> getPreferences();
-      break;
-    case 'X':
-      controller -> set(0, LAControl::STOP);
-      break;
-    #endif
     default:
       controller -> stop();
   }

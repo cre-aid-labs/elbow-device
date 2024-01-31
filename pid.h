@@ -13,12 +13,11 @@ class PIDController {
   float prev_e;
   public:
   
-  PIDController(float Ki, float Kp, float Kd, float init_sp = 0.0);
+  PIDController(float Ki, float Kp, float Kd);
   void setPoint(float sp);
   void update(float cur_u);
-  float getIntegralValue();
-  void unwindIntegral();
   float out();
+  
 };
 
 #endif
