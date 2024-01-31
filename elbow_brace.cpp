@@ -241,6 +241,6 @@ void ElbowBrace::initDevice() {
     2000,
     (void*) this,
     1,
-    &elbow_serial_task
+    elbow_serial_task
   );
 }
