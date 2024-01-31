@@ -42,15 +42,6 @@ void ElbowBrace::serialTransmitLoop() {
   }
 }
 
-void ElbowBrace::serialTransmitLoop() {
-  while(true) {
-    hexobt -> write("A ");
-    hexobt -> write(std::to_string(this -> getAngle()));
-    hexobt -> write("\n");
-    vTaskDelay(500/portTICK_PERIOD_MS);
-  }
-}
-
 void ElbowBrace::setReference() {
   elbow_encoder -> setOffset(-theta);
 }
