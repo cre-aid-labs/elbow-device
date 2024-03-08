@@ -12,6 +12,7 @@
 #include "parser.h"
 #include "elbow_brace.h"
 #include "pin_defs.h"
+#include "saved_data.h"
 
 void executeCommand(Command comm);
 void emergencyStop();
@@ -52,6 +53,10 @@ class ElbowDeviceRWCallbacks : public HexoBTCharacteristicCallbacks {
   void onWrite(BLECharacteristic* pTxCharacteristic) {
     char* rx_string = &(pTxCharacteristic -> getValue())[0];
     Command comm = parser -> parseDirect(rx_string);
+    if(comm.mode == 'S' && comm.value == -1) {
+      MultiCommand multicomm = parser -> parseMultiCommandDirect(rx_string);
+      
+    }
     Serial.print("command: ");
     Serial.print(comm.mode);
     Serial.print(", ");
@@ -66,8 +71,8 @@ class ElbowDeviceRWCallbacks : public HexoBTCharacteristicCallbacks {
 
 void send_serial_data(void* obj) {
   while(true) {
-    Serial.print("ROT: ");
-    Serial.print(controller -> getRotations());
+    Serial.print("DELTA: ");
+    Serial.print(elbow_brace -> pid -> out());
     Serial.print("\tSPD: ");
     Serial.print(controller -> getRotSpeed());
     #ifdef BRACE_ENCODER
@@ -75,10 +80,14 @@ void send_serial_data(void* obj) {
     Serial.print(elbow_brace -> getAngle());
     #endif
     Serial.print("\tLIM: ");
-    Serial.println(controller -> isLimitSwitchTriggered());
+    Serial.print(controller -> isLimitSwitchTriggered());
+    Serial.print("\tINTG: ");
+    Serial.print(elbow_brace -> pid -> getIntegralValue());
     #ifdef BRACE_ENCODER
-    hexobt -> write(std::to_string(elbow_brace -> getAngle()));
-    hexobt -> write("\n");
+    Serial.print("\tACTRL: ");
+    Serial.print(elbow_brace -> isAngleControlEnabled());
+    Serial.print("\tOFST: ");
+    Serial.println(elbow_brace -> getReference());
     #endif
     vTaskDelay(300/portTICK_PERIOD_MS);
   }
@@ -107,14 +116,15 @@ void setup() {
     SERVICE_UUID);
   hexobt = new HexoBT();
   hexobt -> init(
-    "CREAID CPM",
+    "CREAIDa2cd15ba",
     new ElbowDeviceServerCallbacks(),
     new ElbowDeviceRWCallbacks(),
     uuids);
   initMotorControlLoop();
 
   #ifdef BRACE_ENCODER
-  elbow_brace = new ElbowBrace(BRC_ENC_SDA, BRC_ENC_SCL, BRC_ENC_DIR, hexobt);
+  elbow_brace = new ElbowBrace(BRC_ENC_SDA, BRC_ENC_SCL, BRC_ENC_DIR, hexobt, NULL);
+  elbow_brace -> setController(controller);
   elbow_brace -> initDevice();
   #endif
   xTaskCreate(
@@ -128,7 +138,8 @@ void setup() {
 }
 
 void loop() {
-
+  
+  #ifndef BRACE_ENCODER
   if(Serial.available()>0){
     char cmd = Serial.read();
     switch(cmd) {
@@ -149,14 +160,64 @@ void loop() {
         break;
     }
   }
+  #endif
 
-  if(!(hexobt -> device_connected) && (hexobt -> prev_device_connected)) {
-    hexobt -> restartAdvertising();
-    hexobt -> prev_device_connected = hexobt -> device_connected;
+  #ifdef BRACE_ENCODER
+  if(Serial.available()>0){
+    char cmd = Serial.read();
+    if(elbow_brace -> isAngleControlEnabled()) {
+      float ang = 0.0;
+      switch(cmd) {
+        case 'I':
+          ang = Serial.readStringUntil('/').toFloat();
+          elbow_brace -> moveByAngle(ang);
+          break;
+        case 'J':
+          ang = Serial.readStringUntil('/').toFloat();
+          Serial.print("ANGLE: ");
+          Serial.println(ang);
+          elbow_brace -> moveByAngle(-ang);
+          break;
+        case 'D':
+          elbow_brace -> setFlexLimitAtPosition();
+          break;
+        case 'G':
+          elbow_brace -> setExtLimitAtPosition();
+          break;
+      }
+    }
+    switch(cmd) {
+      case 'F':
+        controller -> set(s_mot, LAControl::FWD);
+        break;
+      case 'B':
+        controller -> set(s_mot, LAControl::REV);
+        break;
+      case 'S':
+        controller -> set(0, LAControl::STOP);
+        break; 
+      case 'H':
+        controller -> homeControls();
+        break;
+      case 'E':
+        s_mot = Serial.readStringUntil('/').toInt();
+        break;
+      case 'Z':
+        elbow_brace -> setReference();
+        break;
+      case 'A':
+        elbow_brace -> enableAngleControl();
+        break;
+      case 'K':
+        elbow_brace -> disableAngleControl();
+        break;
+      case 'M':
+        elbow_brace -> setAngle(elbow_brace -> getAngle());
+        break;
+    }
   }
-  if((hexobt -> device_connected) && !(hexobt -> prev_device_connected)) {
-    hexobt -> prev_device_connected = hexobt -> device_connected;
-  }
+  #endif
+  
 }
 
 float readCurrent() {
@@ -230,11 +291,55 @@ void commExec(Command comm) {
         vTaskDelay(200/portTICK_PERIOD_MS);
       }
       break;
+    #ifdef BRACE_ENCODER
     case 'Z':
-      #ifdef ELBOW_BRACE
-        elbow_brace -> setReference();
-      #endif
+      elbow_brace -> setReference();
       break;
+    case 'I':
+      elbow_brace -> moveByAngle(comm.value);
+      break;
+    case 'J':
+      elbow_brace -> moveByAngle(-comm.value);
+      break;
+    case 'G':
+      switch(comm.value) {
+        case 0:
+          elbow_brace -> disableROMLimits();
+          break;
+        case 1:
+          elbow_brace -> enableROMLimits();
+          break;
+        case 2:
+          elbow_brace -> disableAngleControl();
+          break;
+        case 3:
+          elbow_brace -> enableAngleControl();
+          break;
+        case 4:
+          elbow_brace -> pid -> unwindIntegral();
+          break;
+        case 5:
+          elbow_brace -> setAngle(elbow_brace -> getAngle());
+          break;
+      }
+      break;
+    case 'M':
+      switch(comm.value) {
+        case 0:
+          elbow_brace -> setFlexLimitAtPosition();
+          break;
+        case 1:
+          elbow_brace -> setExtLimitAtPosition();
+          break;
+      }
+      break;
+    case 'P':
+      elbow_brace -> getPreferences();
+      break;
+    case 'X':
+      controller -> set(0, LAControl::STOP);
+      break;
+    #endif
     default:
       controller -> stop();
   }
