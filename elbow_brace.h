@@ -29,6 +29,9 @@ class ElbowBrace {
   float flex_rom_limit = 110.0;
   float ext_rom_limit = 0.0;
 
+  bool cpm_mode = false;
+  int cpm_half_reps = 0;
+
   float omega = 0.0;
   float theta = 0.0;
 
@@ -41,6 +44,7 @@ class ElbowBrace {
   void setController(LAController* controller);
   void initDevice();
   void getPreferences();
+  void getCPMStatus();
   void setReference();
   float getReference();
   void setAngle(float angle);
@@ -58,6 +62,7 @@ class ElbowBrace {
   void disableROMLimits();
   void flex();
   void extend();
+  void cpm(int spd, int reps);
   ElbowBrace(int enc_sda, int enc_scl, int enc_dir, HexoBT* hexobt, BraceSettings* settings_ptr = NULL);
 };
 

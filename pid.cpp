@@ -13,6 +13,7 @@ PIDController::PIDController(float Kp, float Ki, float Kd, float init_sp) {
   integral = 0.0;
   sp = init_sp;
   prev_time = millis();
+  pid_max_power = PID_MAX_POWER;
 }
 
 void PIDController::setPoint(float sp) {
@@ -47,7 +48,7 @@ void PIDController::update(float cur_u) {
   if(Ki*integral > PID_INTEGRAL_LIMIT) integral = PID_INTEGRAL_LIMIT / Ki;
   if(Ki*integral < -PID_INTEGRAL_LIMIT) integral = -PID_INTEGRAL_LIMIT / Ki;
   u = -Kp * cur_e - Ki * integral - Kd * dedt;
-  if(u > PID_MAX_POWER) u = PID_MAX_POWER;
-  if(u < -PID_MAX_POWER) u = -PID_MAX_POWER;
+  if(u > pid_max_power) u = pid_max_power;
+  if(u < -pid_max_power) u = -pid_max_power;
   prev_e = cur_e;
 }

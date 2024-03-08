@@ -3,14 +3,13 @@
 
 #include <Preferences.h>
 
-class Login {
+class LoginData {
   Preferences login_data;
-  char digest[32];
-
   public:
   void init();
-  bool checkLogin(const char* password);
-  bool setLogin(const char* password);
+  String returnPasswordHash();
+  String returnPasswordSalt();
+  void setPasswordHash(const unsigned char* password_hash);
   ~Login();
 };
 
@@ -22,7 +21,6 @@ class BraceSettings {
 
   float getOffsetAngle();
   bool setOffsetAngle(float angle);
-
   void setFlexionLimit(float angle);
   void setExtensionLimit(float angle);
   float getFlexionLimit();

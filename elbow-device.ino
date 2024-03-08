@@ -53,6 +53,10 @@ class ElbowDeviceRWCallbacks : public HexoBTCharacteristicCallbacks {
   void onWrite(BLECharacteristic* pTxCharacteristic) {
     char* rx_string = &(pTxCharacteristic -> getValue())[0];
     Command comm = parser -> parseDirect(rx_string);
+    if(comm.mode == 'S' && comm.value == -1) {
+      MultiCommand multicomm = parser -> parseMultiCommandDirect(rx_string);
+      
+    }
     Serial.print("command: ");
     Serial.print(comm.mode);
     Serial.print(", ");
@@ -213,14 +217,6 @@ void loop() {
     }
   }
   #endif
-
-  if(!(hexobt -> device_connected) && (hexobt -> prev_device_connected)) {
-    hexobt -> restartAdvertising();
-    hexobt -> prev_device_connected = hexobt -> device_connected;
-  }
-  if((hexobt -> device_connected) && !(hexobt -> prev_device_connected)) {
-    hexobt -> prev_device_connected = hexobt -> device_connected;
-  }
   
 }
 

@@ -1,22 +1,25 @@
 #include "saved_data.h"
 #include <Preferences.h>
+#include <crypto.h>
 
-void Login::init() {
+void LoginData::init() {
   login_data.begin("login-data");
 }
 
-bool Login::checkLogin(const char *password) {
-  if (strlen(password) != 4) return false;
-  return login_data.getString("pin", "0000").equals(password);
+void LoginData::setPasswordHash(String password_hash, String password_salt) {
+  login_data.putString("sha1-hash", password_hash);
+  login_data.putString("pwd-salt", password_salt);
 }
 
-bool Login::setLogin(const char *password) {
-  if (strlen(password) != 4) return false;
-  login_data.putString("pin", password);
-  return true;
+String LoginData::returnPasswordHash(const unsigned char* password_hash_buffer) {
+  return login_data.getString("sha1-hash", "00000000000000000000");
 }
 
-Login::~Login() {
+String LoginData::returnPasswordSalt() {
+  return login_data.getString("pwd-salt", "0000000000");
+}
+
+LoginData::~LoginData() {
   login_data.end();
 }
 

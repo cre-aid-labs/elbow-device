@@ -11,6 +11,7 @@ class PIDController {
   float u;
   float integral;
   float prev_e;
+  float pid_max_power
   public:
   
   PIDController(float Ki, float Kp, float Kd, float init_sp = 0.0);
@@ -19,6 +20,7 @@ class PIDController {
   float getIntegralValue();
   void unwindIntegral();
   float out();
+  void setMaxPower(float power);
 };
 
 #endif

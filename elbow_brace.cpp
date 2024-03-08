@@ -88,6 +88,26 @@ void ElbowBrace::controlLoop() {
         }
       }
     }
+
+    if(cpm_mode) {
+      if(theta > flex_rom_limit) {
+        controller -> set(cpm_spd, LAControl::REV);
+        cpm_half_reps--;
+        getCPMStatus();
+      } else if(theta < ext_rom_limit) {
+        controller -> set(cpm_spd, LAControl::FWD);
+        cpm_half_reps--;
+        getCPMStatus();
+      }
+      if(flex_rom_limit < ext_rom_limit) {
+        cpm_mode = false;
+        getCPMStatus();
+      }
+      if(cpm_half_reps < 0) {
+        cpm_mode = false;
+        getCPMStatus();
+      }
+    }
     pid -> update(theta);
     vTaskDelay(100/portTICK_PERIOD_MS);
   }
@@ -96,15 +116,6 @@ void ElbowBrace::controlLoop() {
 void ElbowBrace::serialTransmitLoop() {
   while(true) {
     hexobt -> write("A " + std::to_string(this -> getAngle()));
-    vTaskDelay(500/portTICK_PERIOD_MS);
-  }
-}
-
-void ElbowBrace::serialTransmitLoop() {
-  while(true) {
-    hexobt -> write("A ");
-    hexobt -> write(std::to_string(this -> getAngle()));
-    hexobt -> write("\n");
     vTaskDelay(500/portTICK_PERIOD_MS);
   }
 }
@@ -186,6 +197,11 @@ void ElbowBrace::extend() {
   set_point = ext_rom_limit;
 }
 
+void ElbowBrace::cpm(int spd, int reps) {
+  cpm_mode = true;
+  cpm_half_reps = 2 * reps;
+}
+
 void ElbowBrace::setController(LAController* controller) {
   this -> controller = controller;
 }
@@ -200,6 +216,11 @@ void ElbowBrace::getPreferences() {
   hexobt -> write("P1 " + std::to_string(isROMLimitEnabled() ? 1:0));
   hexobt -> write("P2 " + std::to_string(flex_rom_limit));
   hexobt -> write("P3 " + std::to_string(ext_rom_limit));
+}
+
+void ElbowBrace::getCPMStatus() {
+  if(hexobt == NULL) return;
+  hexobt -> write("CPM0 " + std::to_string(cpm_half_reps / 2));
 }
 
 void ElbowBrace::controlLoopWrapper(void* obj) {
